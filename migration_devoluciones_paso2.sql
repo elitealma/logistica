@@ -1,10 +1,7 @@
 -- ═══════════════════════════════════════════════════
--- Elite Logística — Migración: Tabla de Devoluciones
--- Ejecutar en el SQL Editor de Supabase
+-- PASO 2 de 2: Ejecutar DESPUÉS del paso 1
+-- Crear tabla y datos de devoluciones
 -- ═══════════════════════════════════════════════════
-
--- 0. Agregar 'DEVOLUCIONES' al enum kanban_columna
-ALTER TYPE kanban_columna ADD VALUE IF NOT EXISTS 'DEVOLUCIONES';
 
 -- 1. Crear tabla de devoluciones
 CREATE TABLE IF NOT EXISTS public.devoluciones (
@@ -33,14 +30,14 @@ CREATE POLICY "Allow anonymous read devoluciones" ON public.devoluciones FOR SEL
 CREATE POLICY "Allow anonymous insert devoluciones" ON public.devoluciones FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow anonymous update devoluciones" ON public.devoluciones FOR UPDATE USING (true);
 
--- 4. Datos de prueba
+-- 4. Tarjetas de prueba en columna DEVOLUCIONES
 INSERT INTO public.cards (numero_guia, cliente_nombre, telefono, columna, mensaje, porcentaje_entrega, pedidos_count, asignado_a)
 VALUES
   ('SRV-001249', 'Alejandro Muñoz', '573002345678', 'DEVOLUCIONES', 'Cliente rechazó pedido — solicita devolución', 0, 1, 'Ana María Torres'),
   ('SRV-001250', 'Patricia Reyes Gil', '573008765432', 'DEVOLUCIONES', 'Paquete equivocado — devolver a origen', 0, 2, 'Luis Gómez')
 ON CONFLICT (numero_guia) DO NOTHING;
 
--- 5. Detalle de devolución para las tarjetas nuevas
+-- 5. Detalle de devolución
 INSERT INTO public.devoluciones (card_id, motivo, estado_devolucion, direccion_retorno, observaciones)
 SELECT c.id, 'Cliente rechazó el pedido', 'PENDIENTE', 'Cra 45 #23-10, Medellín', 'El cliente no estaba en la dirección y rechazó al segundo intento'
 FROM public.cards c WHERE c.numero_guia = 'SRV-001249';
