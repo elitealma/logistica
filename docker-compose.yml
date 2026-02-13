@@ -5,7 +5,7 @@ services:
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
     networks:
-      - traefik-public
+      - pegasus_net
     deploy:
       replicas: 1
       restart_policy:
@@ -15,14 +15,9 @@ services:
         - "traefik.enable=true"
         - "traefik.http.routers.logistica.rule=Host(`logistica.pegasus360agency.com`)"
         - "traefik.http.routers.logistica.entrypoints=websecure"
-        - "traefik.http.routers.logistica.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.logistica.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.logistica.loadbalancer.server.port=3000"
-        # HTTP → HTTPS redirect
-        - "traefik.http.routers.logistica-http.rule=Host(`logistica.pegasus360agency.com`)"
-        - "traefik.http.routers.logistica-http.entrypoints=web"
-        - "traefik.http.routers.logistica-http.middlewares=redirect-to-https"
-        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
 
 networks:
-  traefik-public:
+  pegasus_net:
     external: true
