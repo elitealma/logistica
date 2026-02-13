@@ -333,6 +333,38 @@ body {
   flex-shrink: 0;
 }
 
+.dot--guia {
+  background: var(--blue);
+}
+
+.dot--reparto {
+  background: var(--green);
+}
+
+.dot--oficina {
+  background: var(--cyan);
+}
+
+.dot--asesor {
+  background: var(--yellow);
+}
+
+.dot--retraso {
+  background: var(--red);
+}
+
+.dot--novedades {
+  background: var(--orange);
+}
+
+.dot--garantias {
+  background: var(--purple);
+}
+
+.dot--devoluciones {
+  background: #f43f5e;
+}
+
 .column__name {
   font-size: 0.8rem;
   font-weight: 600;

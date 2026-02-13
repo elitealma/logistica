@@ -5,7 +5,8 @@ export type ColumnStatus =
     | 'HABLAR_CON_ASESOR'
     | 'RETRASO_O_MOLESTIA'
     | 'NOVEDADES'
-    | 'GARANTIAS';
+    | 'GARANTIAS'
+    | 'DEVOLUCIONES';
 
 export interface Card {
     id: string;
@@ -31,6 +32,18 @@ export interface Movimiento {
     raw?: Record<string, unknown>;
 }
 
+export interface Devolucion {
+    id: string;
+    card_id: string;
+    motivo: string;
+    estado_devolucion: string;
+    direccion_retorno: string;
+    observaciones: string;
+    fecha_solicitud: string;
+    fecha_devolucion: string | null;
+    created_at: string;
+}
+
 export const COLUMNS: { id: ColumnStatus; label: string }[] = [
     { id: 'GUIA_GENERADA', label: 'Guía Generada' },
     { id: 'EN_REPARTO', label: 'En Reparto' },
@@ -39,6 +52,7 @@ export const COLUMNS: { id: ColumnStatus; label: string }[] = [
     { id: 'RETRASO_O_MOLESTIA', label: 'Retraso o Molestia' },
     { id: 'NOVEDADES', label: 'Novedades' },
     { id: 'GARANTIAS', label: 'Garantías' },
+    { id: 'DEVOLUCIONES', label: 'Devoluciones' },
 ];
 
 /** CSS class suffix for each column (dot colors & badges) */
@@ -50,4 +64,5 @@ export const COLUMN_STYLES: Record<ColumnStatus, { dotClass: string }> = {
     RETRASO_O_MOLESTIA: { dotClass: 'retraso' },
     NOVEDADES: { dotClass: 'novedades' },
     GARANTIAS: { dotClass: 'garantias' },
+    DEVOLUCIONES: { dotClass: 'devoluciones' },
 };
