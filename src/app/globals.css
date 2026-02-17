@@ -345,6 +345,10 @@ body {
   background: var(--cyan);
 }
 
+.dot--entregado {
+  background: #10b981;
+}
+
 .dot--asesor {
   background: var(--yellow);
 }
@@ -790,6 +794,11 @@ body {
 .badge--oficina {
   background: var(--cyan-bg);
   color: var(--cyan);
+}
+
+.badge--entregado {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
 }
 
 .badge--asesor {

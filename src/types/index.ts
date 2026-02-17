@@ -2,6 +2,7 @@ export type ColumnStatus =
     | 'GUIA_GENERADA'
     | 'EN_REPARTO'
     | 'EN_OFICINA'
+    | 'ENTREGADO_AL_CLIENTE'
     | 'HABLAR_CON_ASESOR'
     | 'RETRASO_O_MOLESTIA'
     | 'NOVEDADES'
@@ -65,6 +66,7 @@ export const COLUMNS: { id: ColumnStatus; label: string }[] = [
     { id: 'GUIA_GENERADA', label: 'Guía Generada' },
     { id: 'EN_REPARTO', label: 'En Reparto' },
     { id: 'EN_OFICINA', label: 'En Oficina' },
+    { id: 'ENTREGADO_AL_CLIENTE', label: 'Entregado al Cliente' },
     { id: 'HABLAR_CON_ASESOR', label: 'Hablar con Asesor' },
     { id: 'RETRASO_O_MOLESTIA', label: 'Retraso o Molestia' },
     { id: 'NOVEDADES', label: 'Novedades' },
@@ -77,6 +79,7 @@ export const COLUMN_STYLES: Record<ColumnStatus, { dotClass: string }> = {
     GUIA_GENERADA: { dotClass: 'guia' },
     EN_REPARTO: { dotClass: 'reparto' },
     EN_OFICINA: { dotClass: 'oficina' },
+    ENTREGADO_AL_CLIENTE: { dotClass: 'entregado' },
     HABLAR_CON_ASESOR: { dotClass: 'asesor' },
     RETRASO_O_MOLESTIA: { dotClass: 'retraso' },
     NOVEDADES: { dotClass: 'novedades' },
