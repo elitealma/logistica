@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Card, ColumnStatus, COLUMNS, Movimiento, COLUMN_STYLES } from '@/types';
+import { Card, ColumnStatus, COLUMNS, Movimiento, COLUMN_STYLES, TRANSPORTADORAS } from '@/types';
 import {
   Search,
   Phone,
@@ -15,6 +15,9 @@ import {
   Truck,
   MapPin,
   User,
+  CreditCard,
+  DollarSign,
+  Building2,
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════
@@ -31,6 +34,7 @@ export default function KanbanDashboard() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [dragOverColumn, setDragOverColumn] = useState<ColumnStatus | null>(null);
   const [filterColumn, setFilterColumn] = useState<ColumnStatus | null>(null);
+  const [filterTransportadora, setFilterTransportadora] = useState<string>('');
   const dragCardId = useRef<string | null>(null);
 
   // ── Initial fetch ──────────────────────────────────
@@ -144,9 +148,11 @@ export default function KanbanDashboard() {
         (card.numero_guia ?? '').toLowerCase().includes(term) ||
         (card.cliente_nombre ?? '').toLowerCase().includes(term);
       const matchColumn = !filterColumn || card.columna === filterColumn;
-      return matchSearch && matchColumn;
+      const matchTransportadora =
+        !filterTransportadora || card.transportadora === filterTransportadora;
+      return matchSearch && matchColumn && matchTransportadora;
     });
-  }, [cards, searchTerm, filterColumn]);
+  }, [cards, searchTerm, filterColumn, filterTransportadora]);
 
   const cardsByColumn = useMemo(() => {
     const acc = {} as Record<ColumnStatus, Card[]>;
@@ -157,6 +163,15 @@ export default function KanbanDashboard() {
   }, [filteredCards]);
 
   const totalCards = cards.length;
+
+  // ── List of unique transportadoras from existing data ──
+  const uniqueTransportadoras = useMemo(() => {
+    const fromCards = cards
+      .map((c) => c.transportadora)
+      .filter((t): t is string => !!t);
+    const all = new Set([...TRANSPORTADORAS, ...fromCards]);
+    return Array.from(all).sort();
+  }, [cards]);
 
   // ── Helpers ────────────────────────────────────────
   const formatTime = (iso: string) => {
@@ -182,6 +197,16 @@ export default function KanbanDashboard() {
     } catch {
       return '';
     }
+  };
+
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value == null) return '—';
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
   };
 
   // ── Loading state ──────────────────────────────────
@@ -221,6 +246,23 @@ export default function KanbanDashboard() {
         </div>
 
         <div className="header__right">
+          {/* Filtro Transportadora */}
+          <div className="filter-select-wrapper">
+            <Truck size={14} className="filter-select__icon" />
+            <select
+              className="filter-select"
+              value={filterTransportadora}
+              onChange={(e) => setFilterTransportadora(e.target.value)}
+            >
+              <option value="">Todas las Transportadoras</option>
+              {uniqueTransportadoras.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="live-badge">
             <span className="live-badge__dot" />
             En vivo
@@ -316,6 +358,31 @@ export default function KanbanDashboard() {
                         {card.cliente_nombre || 'Sin nombre'}
                       </div>
 
+                      {card.transportadora && (
+                        <div className="card__row card__transportadora">
+                          <Truck size={13} />
+                          <span>{card.transportadora}</span>
+                        </div>
+                      )}
+
+                      {card.producto && (
+                        <div className="card__row">
+                          <Package size={13} />
+                          <span className="card__message">{card.producto}</span>
+                        </div>
+                      )}
+
+                      {(card.ciudad || card.departamento) && (
+                        <div className="card__row">
+                          <MapPin size={13} />
+                          <span>
+                            {[card.ciudad, card.departamento]
+                              .filter(Boolean)
+                              .join(', ')}
+                          </span>
+                        </div>
+                      )}
+
                       {card.telefono && (
                         <div className="card__row">
                           <Phone size={13} />
@@ -336,6 +403,12 @@ export default function KanbanDashboard() {
                         >
                           {col.label}
                         </span>
+
+                        {card.valor_total != null && card.valor_total > 0 && (
+                          <span className="card__value">
+                            {formatCurrency(card.valor_total)}
+                          </span>
+                        )}
 
                         {(card.porcentaje_entrega ?? 0) > 0 && (
                           <div className="card__progress">
@@ -399,6 +472,42 @@ export default function KanbanDashboard() {
                   <span className="drawer__label">Estado</span>
                   <span className="drawer__value">
                     {selectedCard.columna}
+                  </span>
+                </div>
+                <div className="drawer__field">
+                  <span className="drawer__label">Transportadora</span>
+                  <span className="drawer__value">
+                    {selectedCard.transportadora || '—'}
+                  </span>
+                </div>
+                <div className="drawer__field">
+                  <span className="drawer__label">Producto</span>
+                  <span className="drawer__value">
+                    {selectedCard.producto || '—'}
+                  </span>
+                </div>
+                <div className="drawer__field">
+                  <span className="drawer__label">Medio de Pago</span>
+                  <span className="drawer__value">
+                    {selectedCard.medio_pago || '—'}
+                  </span>
+                </div>
+                <div className="drawer__field">
+                  <span className="drawer__label">Valor Total</span>
+                  <span className="drawer__value">
+                    {formatCurrency(selectedCard.valor_total)}
+                  </span>
+                </div>
+                <div className="drawer__field">
+                  <span className="drawer__label">Ciudad</span>
+                  <span className="drawer__value">
+                    {selectedCard.ciudad || '—'}
+                  </span>
+                </div>
+                <div className="drawer__field">
+                  <span className="drawer__label">Departamento</span>
+                  <span className="drawer__value">
+                    {selectedCard.departamento || '—'}
                   </span>
                 </div>
                 <div className="drawer__field">

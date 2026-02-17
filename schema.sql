@@ -18,6 +18,12 @@ BEGIN
       porcentaje_entrega INTEGER DEFAULT 0,
       pedidos_count INTEGER DEFAULT 1,
       asignado_a TEXT,
+      transportadora TEXT,
+      producto TEXT,
+      medio_pago TEXT,
+      valor_total NUMERIC(12,2),
+      ciudad TEXT,
+      departamento TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
   );
@@ -46,6 +52,24 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='cards' AND column_name='asignado_a') THEN
     ALTER TABLE public.cards ADD COLUMN asignado_a TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='cards' AND column_name='transportadora') THEN
+    ALTER TABLE public.cards ADD COLUMN transportadora TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='cards' AND column_name='producto') THEN
+    ALTER TABLE public.cards ADD COLUMN producto TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='cards' AND column_name='medio_pago') THEN
+    ALTER TABLE public.cards ADD COLUMN medio_pago TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='cards' AND column_name='valor_total') THEN
+    ALTER TABLE public.cards ADD COLUMN valor_total NUMERIC(12,2);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='cards' AND column_name='ciudad') THEN
+    ALTER TABLE public.cards ADD COLUMN ciudad TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='cards' AND column_name='departamento') THEN
+    ALTER TABLE public.cards ADD COLUMN departamento TEXT;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='cards' AND column_name='updated_at') THEN
     ALTER TABLE public.cards ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();

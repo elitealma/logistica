@@ -18,9 +18,26 @@ export interface Card {
     porcentaje_entrega: number;
     pedidos_count: number;
     asignado_a: string;
+    transportadora: string;
+    producto: string;
+    medio_pago: string;
+    valor_total: number;
+    ciudad: string;
+    departamento: string;
     updated_at: string;
     created_at?: string;
 }
+
+/** Transportadoras disponibles */
+export const TRANSPORTADORAS = [
+    'Servientrega',
+    'Coordinadora',
+    'Interrapidisimo',
+    'Envia',
+    'TCC',
+    'Deprisa',
+    'Saferbo',
+] as const;
 
 export interface Movimiento {
     id: string;
