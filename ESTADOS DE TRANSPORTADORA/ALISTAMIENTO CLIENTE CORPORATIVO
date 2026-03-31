@@ -1,0 +1,48 @@
+// =====================================================
+// 🚚 ESTADO: ALISTAMIENTO CLIENTE CORPORATIVO (Guía Generada)
+// =====================================================
+// ¿Qué hace este código?
+//   Detecta cuando se acaba de CREAR una guía de envío.
+//   Es el primer estado del paquete — todavía no está
+//   en manos del transportador.
+//
+// 📥 EJEMPLOS DE LO QUE PUEDE LLEGAR (EstadoActualEnvio):
+//   - "Guia_generada"
+//   - "Guia generada"
+//   - "GUIA_GENERADA"
+//   - "guia generada cliente corporativo"
+//   - "Alistamiento - Guia Generada"
+//
+// 📤 LO QUE DEVUELVE:
+//   - status: "GUIA_GENERADA"  ← si la guía acaba de ser creada
+//   - status: "OTRO_STATUS"    ← si no coincide con nada
+// =====================================================
+
+// PASO 1: Leer el estado que viene del webhook de Servientrega
+const estadoEntrada = ($json.body?.EstadoActualEnvio || "").trim().toLowerCase();
+
+// PASO 2: Quitar tildes para comparar más fácil
+const quitarTildes = (texto) =>
+  texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const estadoLimpio = quitarTildes(estadoEntrada);
+
+// PASO 3: Revisar si se trata de una guía recién generada
+let estadoFinal = "OTRO_STATUS";
+
+if (
+  estadoLimpio.includes("guia_generada") ||
+  estadoLimpio.includes("guia generada")
+) {
+  // ✅ La guía existe pero el paquete aún no ha sido recogido
+  estadoFinal = "GUIA_GENERADA";
+}
+
+// PASO 4: Devolver el resultado
+return [
+  {
+    json: {
+      status: estadoFinal
+    }
+  }
+];

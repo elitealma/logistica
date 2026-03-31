@@ -1,0 +1,50 @@
+// =====================================================
+// 🛵 ESTADO: SALIDA A ZONA URBANA (En Reparto)
+// =====================================================
+// ¿Qué hace este código?
+//   Detecta cuando el paquete ya SALIÓ a repartirse
+//   y está en camino hacia el cliente final.
+//
+// 📥 EJEMPLOS DE LO QUE PUEDE LLEGAR (EstadoActualEnvio):
+//   - "Zona distribucion norte"
+//   - "En reparto Bogota"
+//   - "En ruta de entrega"
+//   - "Mensajero en zona de distribucion"
+//   - "Salida a zona urbana"
+//   - "En reparto domiciliario"
+//
+// 📤 LO QUE DEVUELVE:
+//   - status: "EN_REPARTO"   ← si el paquete va en camino al cliente
+//   - status: "OTRO_STATUS"  ← si no coincide con nada
+// =====================================================
+
+// PASO 1: Leer el estado que viene del webhook de Servientrega
+const estadoEntrada = ($json.body?.EstadoActualEnvio || "").trim().toLowerCase();
+
+// PASO 2: Quitar tildes para comparar más fácil
+//   Ejemplo: "distribución" → "distribucion"
+const quitarTildes = (texto) =>
+  texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const estadoLimpio = quitarTildes(estadoEntrada);
+
+// PASO 3: Revisar si el paquete ya va en camino al cliente
+let estadoFinal = "OTRO_STATUS";
+
+if (
+  estadoLimpio.includes("zona distribucion") ||   // mensajero en zona de reparto
+  estadoLimpio.includes("en reparto") ||            // ya salió a entregar
+  estadoLimpio.includes("en ruta")                  // en ruta de entrega
+) {
+  // ✅ El paquete está en la calle, yendo hacia el cliente
+  estadoFinal = "EN_REPARTO";
+}
+
+// PASO 4: Devolver el resultado
+return [
+  {
+    json: {
+      status: estadoFinal
+    }
+  }
+];

@@ -1,0 +1,53 @@
+// =====================================================
+// 🏭 ESTADO: ENTRADA DE REGIONAL (En Oficina / Centro Logístico)
+// =====================================================
+// ¿Qué hace este código?
+//   Detecta cuando un paquete llega a un CENTRO LOGÍSTICO
+//   de Servientrega (regional, bodega intermedia, etc.)
+//   pero que NO esté en proceso de devolución.
+//
+// 📥 EJEMPLOS DE LO QUE PUEDE LLEGAR (EstadoActualEnvio):
+//   - "Centro logistico Bogota"
+//   - "Llegada a centro logistico Medellin"
+//   - "En centro logistico de Cali"
+//   - "Centro logistico regional norte"
+//
+// ⚠️ NO aplica si dice también "devolucion":
+//   - "Centro logistico - proceso de devolucion" → NO cuenta aquí
+//
+// 📤 LO QUE DEVUELVE:
+//   - status: "EN_OFICINA"   ← si llegó a un centro logístico
+//   - status: "OTRO_STATUS"  ← si no coincide con nada
+// =====================================================
+
+// PASO 1: Leer el estado que viene del webhook de Servientrega
+const estadoEntrada = ($json.body?.EstadoActualEnvio || "").trim().toLowerCase();
+
+// PASO 2: Quitar tildes para comparar más fácil
+//   Ejemplo: "logístico" → "logistico"
+const quitarTildes = (texto) =>
+  texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const estadoLimpio = quitarTildes(estadoEntrada);
+
+// PASO 3: Revisar si el paquete está en un centro logístico
+//         PERO que no sea una devolución
+let estadoFinal = "OTRO_STATUS";
+
+if (
+  estadoLimpio.includes("centro logistico") &&
+  !estadoLimpio.includes("devolucion")
+) {
+  // ✅ El paquete está en una oficina / bodega regional
+  //    y NO es una devolución
+  estadoFinal = "EN_OFICINA";
+}
+
+// PASO 4: Devolver el resultado
+return [
+  {
+    json: {
+      status: estadoFinal
+    }
+  }
+];

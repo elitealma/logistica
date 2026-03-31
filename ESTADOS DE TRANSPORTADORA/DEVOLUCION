@@ -1,0 +1,45 @@
+// =====================================================
+// 📦 ESTADO: DEVOLUCIÓN
+// =====================================================
+// ¿Qué hace este código?
+//   Revisa el estado que manda Servientrega por el webhook
+//   y detecta si el paquete está siendo DEVUELTO.
+//
+// 📥 EJEMPLOS DE LO QUE PUEDE LLEGAR (EstadoActualEnvio):
+//   - "Devolucion a remitente"
+//   - "En proceso de devolucion"
+//   - "Devolucion en centro logistico"
+//   - "Novedad devolucion cliente ausente"
+//   - "Devolucion programada"
+//
+// 📤 LO QUE DEVUELVE:
+//   - status: "DEVOLUCIONES"  ← si detecta devolución
+//   - status: "OTRO_STATUS"   ← si no coincide con nada
+// =====================================================
+
+// PASO 1: Leer el estado que viene del webhook de Servientrega
+const estadoEntrada = ($json.body?.EstadoActualEnvio || "").trim().toLowerCase();
+
+// PASO 2: Quitar tildes para comparar más fácil
+//   Ejemplo: "devolución" → "devolucion"
+const quitarTildes = (texto) =>
+  texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const estadoLimpio = quitarTildes(estadoEntrada);
+
+// PASO 3: Revisar si el estado habla de una devolución
+let estadoFinal = "OTRO_STATUS";
+
+if (estadoLimpio.includes("devolucion")) {
+  // ✅ El paquete va de regreso al remitente
+  estadoFinal = "DEVOLUCIONES";
+}
+
+// PASO 4: Devolver el resultado
+return [
+  {
+    json: {
+      status: estadoFinal
+    }
+  }
+];
