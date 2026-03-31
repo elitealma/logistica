@@ -1,89 +1,109 @@
-// =====================================================
-// 🛵 ESTADO: SALIDA A ZONA URBANA (En Reparto)
-// =====================================================
-// ¿Qué hace este código?
-//   Lee los datos del webhook de Servientrega,
-//   detecta que el paquete ya SALIÓ a repartirse
-//   y prepara toda la información para guardarla en Supabase.
+// =====================================
+// 📥 EJEMPLO REAL DEL WEBHOOK (Servientrega)
+// =====================================
+// {
+//   "body": {
+//     "NumeroGuia": "2283529610",
+//     "NombreDestinatario": "Fernando de Jesús Zapata Cardona",
+//     "CiudadDestinatario": "MEDELLIN",
+//     "EstadoActualEnvio": "Ingreso a centro logístico por devolución",
+//     "Mov": {
+//       "NombreProceso": "DEVOLUCION ZONA URBANA"  ← fuente principal
+//     }
+//   }
+// }
 //
-// 📥 EJEMPLOS DE LO QUE PUEDE LLEGAR (EstadoActualEnvio):
-//   - "Zona distribucion norte"
-//   - "En reparto Bogota"
-//   - "En ruta de entrega"
-//   - "Mensajero en zona de distribucion"
-//   - "Salida a zona urbana"
-//   - "En reparto domiciliario"
-//
-// 📤 GUARDA EN SUPABASE:
-//   → Tabla "cards":       actualiza el estado de la guía
-//   → Tabla "movimientos": registra el historial del evento
-// =====================================================
+// Valores reales de NombreProceso:
+//   ALISTAMIENTO CLIENTE CORPORATIVO → GUIA_GENERADA
+//   ENTRADA DE REGIONAL              → EN_OFICINA
+//   SALIDA A ZONA URBANA             → EN_REPARTO
+//   ENTREGA VERIFICADA               → ENTREGADO_AL_CLIENTE
+//   DEVOLUCION ZONA URBANA           → DEVOLUCIONES
 
-// PASO 1: Leer todos los datos que manda Servientrega
+// =====================================
+// LEER LOS DATOS REALES DEL WEBHOOK
+// =====================================
 const body = $json.body || {};
 
-const numeroGuia    = (body.NumeroGuia           || body.numero_guia    || "").trim();
-const clienteNombre = (body.NombreDestinatario   || body.cliente_nombre || "").trim();
-const telefono      = (body.TelefonoDestinatario || body.telefono       || "").trim();
-const ciudad        = (body.CiudadDestino        || body.ciudad         || "").trim();
-const departamento  = (body.DepartamentoDestino  || body.departamento   || "").trim();
-const estadoRaw     = (body.EstadoActualEnvio    || "").trim();
-const observacion   = (body.Observacion          || body.observaciones  || "").trim();
+const numeroGuia    = (body.NumeroGuia         || "").trim();
+const clienteNombre = (body.NombreDestinatario || "").trim();
+const ciudad        = (body.CiudadDestinatario || "").trim();
+const estadoRaw     = (body.EstadoActualEnvio  || "").trim();
+const proceso       = (body.Mov?.NombreProceso || "").trim().toUpperCase();
 
-// PASO 2: Quitar tildes para comparar más fácil
-//   Ejemplo: "distribución" → "distribucion"
-const quitarTildes = (texto) =>
+// =====================================
+// MAPEO POR NombreProceso (fuente principal)
+// + fallback a EstadoActualEnvio
+// =====================================
+const normalizar = (texto) =>
   texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-const estadoLimpio = quitarTildes(estadoRaw.toLowerCase());
+let estadoFinal = "OTRO_STATUS";
 
-// PASO 3: Confirmar que el paquete ya va en camino al cliente
-let columnaKanban = "OTRO_STATUS";
-let estadoLegible = "❓ Estado desconocido";
-
-if (
-  estadoLimpio.includes("zona distribucion") ||   // mensajero en zona de reparto
-  estadoLimpio.includes("en reparto")          ||  // ya salió a entregar
-  estadoLimpio.includes("en ruta")                 // en ruta de entrega
-) {
-  columnaKanban = "EN_REPARTO";
-  estadoLegible = "🛵 En Camino — el mensajero va hacia el cliente";
+// --- Por NombreProceso (más confiable) ---
+if (proceso.includes("ALISTAMIENTO")) {
+  estadoFinal = "GUIA_GENERADA";
+}
+else if (proceso.includes("ENTRADA DE REGIONAL")) {
+  estadoFinal = "EN_OFICINA";
+}
+else if (proceso.includes("SALIDA A ZONA URBANA")) {
+  estadoFinal = "EN_REPARTO";
+}
+else if (proceso.includes("ENTREGA VERIFICADA")) {
+  estadoFinal = "ENTREGADO_AL_CLIENTE";
+}
+else if (proceso.includes("DEVOLUCION")) {
+  estadoFinal = "DEVOLUCIONES";
+}
+// --- Fallback: por EstadoActualEnvio ---
+else {
+  const e = normalizar(estadoRaw.toLowerCase());
+  if (e.includes("guia_generada") || e.includes("guia generada")) {
+    estadoFinal = "GUIA_GENERADA";
+  } else if (e.includes("zona distribucion") || e.includes("en reparto") || e.includes("en ruta")) {
+    estadoFinal = "EN_REPARTO";
+  } else if (e.includes("centro logistico") && !e.includes("devolucion")) {
+    estadoFinal = "EN_OFICINA";
+  } else if (e.includes("entregado")) {
+    estadoFinal = "ENTREGADO_AL_CLIENTE";
+  } else if (e.includes("devolucion")) {
+    estadoFinal = "DEVOLUCIONES";
+  }
 }
 
-// PASO 4: Armar el objeto para guardar en Supabase → tabla "cards"
-//   (upsert: actualiza si ya existe la guía, inserta si es nueva)
-const datosCard = {
+// =====================================
+// DATOS PARA SUPABASE → tabla "cards"
+// =====================================
+const card = {
   numero_guia:    numeroGuia,
   cliente_nombre: clienteNombre || null,
-  telefono:       telefono || null,
-  ciudad:         ciudad || null,
-  departamento:   departamento || null,
-  columna:        columnaKanban,
-  estado_legible: estadoLegible,
-  mensaje:        estadoRaw,           // texto original de Servientrega
+  ciudad:         ciudad        || null,
+  columna:        estadoFinal,
+  mensaje:        estadoRaw,
   transportadora: "Servientrega",
   updated_at:     new Date().toISOString()
 };
 
-// PASO 5: Armar el objeto para guardar en Supabase → tabla "movimientos"
-//   (siempre se inserta — es el historial)
-const datosMovimiento = {
-  estado:  columnaKanban,
+// =====================================
+// DATOS PARA SUPABASE → tabla "movimientos"
+// =====================================
+const movimiento = {
+  estado:  estadoFinal,
   detalle: estadoRaw,
   ciudad:  ciudad || null,
-  raw:     body                        // guarda el JSON completo del webhook
+  raw:     body
 };
 
-// PASO 6: Devolver todo listo para los nodos de Supabase en n8n
+// =====================================
+// SALIDA
+// =====================================
 return [
   {
     json: {
-      // ── Para el nodo "Upsert Card" (tabla cards) ──
-      card: datosCard,
-      // ── Para el nodo "Insert Movimiento" (tabla movimientos) ──
-      movimiento: datosMovimiento,
-      // ── Para filtros o condiciones en el flujo ──
-      status: columnaKanban,
+      card,
+      movimiento,
+      status:      estadoFinal,
       numero_guia: numeroGuia
     }
   }
