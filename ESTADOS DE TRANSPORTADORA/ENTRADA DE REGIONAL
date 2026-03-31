@@ -1,10 +1,10 @@
 // =====================================================
-// 🏭 ESTADO: ENTRADA DE REGIONAL (En Oficina / Centro Logístico)
+// 🏭 ESTADO: ENTRADA DE REGIONAL (En Bodega / Centro Logístico)
 // =====================================================
 // ¿Qué hace este código?
-//   Detecta cuando un paquete llega a un CENTRO LOGÍSTICO
-//   de Servientrega (regional, bodega intermedia, etc.)
-//   pero que NO esté en proceso de devolución.
+//   Lee los datos del webhook de Servientrega,
+//   detecta que el paquete llegó a un CENTRO LOGÍSTICO
+//   y prepara toda la información para guardarla en Supabase.
 //
 // 📥 EJEMPLOS DE LO QUE PUEDE LLEGAR (EstadoActualEnvio):
 //   - "Centro logistico Bogota"
@@ -12,42 +12,80 @@
 //   - "En centro logistico de Cali"
 //   - "Centro logistico regional norte"
 //
-// ⚠️ NO aplica si dice también "devolucion":
-//   - "Centro logistico - proceso de devolucion" → NO cuenta aquí
+// ⚠️ Si dice también "devolucion" → NO se procesa aquí
+//   Ejemplo: "Centro logistico - proceso de devolucion" → pasa al flujo de devoluciones
 //
-// 📤 LO QUE DEVUELVE:
-//   - status: "EN_OFICINA"   ← si llegó a un centro logístico
-//   - status: "OTRO_STATUS"  ← si no coincide con nada
+// 📤 GUARDA EN SUPABASE:
+//   → Tabla "cards":       actualiza el estado de la guía
+//   → Tabla "movimientos": registra el historial del evento
 // =====================================================
 
-// PASO 1: Leer el estado que viene del webhook de Servientrega
-const estadoEntrada = ($json.body?.EstadoActualEnvio || "").trim().toLowerCase();
+// PASO 1: Leer todos los datos que manda Servientrega
+const body = $json.body || {};
+
+const numeroGuia    = (body.NumeroGuia           || body.numero_guia    || "").trim();
+const clienteNombre = (body.NombreDestinatario   || body.cliente_nombre || "").trim();
+const telefono      = (body.TelefonoDestinatario || body.telefono       || "").trim();
+const ciudad        = (body.CiudadDestino        || body.ciudad         || "").trim();
+const departamento  = (body.DepartamentoDestino  || body.departamento   || "").trim();
+const estadoRaw     = (body.EstadoActualEnvio    || "").trim();
+const observacion   = (body.Observacion          || body.observaciones  || "").trim();
 
 // PASO 2: Quitar tildes para comparar más fácil
 //   Ejemplo: "logístico" → "logistico"
 const quitarTildes = (texto) =>
   texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-const estadoLimpio = quitarTildes(estadoEntrada);
+const estadoLimpio = quitarTildes(estadoRaw.toLowerCase());
 
-// PASO 3: Revisar si el paquete está en un centro logístico
-//         PERO que no sea una devolución
-let estadoFinal = "OTRO_STATUS";
+// PASO 3: Confirmar que el paquete está en un centro logístico
+//         y que NO es una devolución
+let columnaKanban = "OTRO_STATUS";
+let estadoLegible = "❓ Estado desconocido";
 
 if (
   estadoLimpio.includes("centro logistico") &&
   !estadoLimpio.includes("devolucion")
 ) {
-  // ✅ El paquete está en una oficina / bodega regional
-  //    y NO es una devolución
-  estadoFinal = "EN_OFICINA";
+  columnaKanban = "EN_OFICINA";
+  estadoLegible = "🏭 En Bodega Regional — esperando salir a reparto";
 }
 
-// PASO 4: Devolver el resultado
+// PASO 4: Armar el objeto para guardar en Supabase → tabla "cards"
+//   (upsert: actualiza si ya existe la guía, inserta si es nueva)
+const datosCard = {
+  numero_guia:    numeroGuia,
+  cliente_nombre: clienteNombre || null,
+  telefono:       telefono || null,
+  ciudad:         ciudad || null,
+  departamento:   departamento || null,
+  columna:        columnaKanban,
+  estado_legible: estadoLegible,
+  mensaje:        estadoRaw,           // texto original de Servientrega
+  transportadora: "Servientrega",
+  updated_at:     new Date().toISOString()
+};
+
+// PASO 5: Armar el objeto para guardar en Supabase → tabla "movimientos"
+//   (siempre se inserta — es el historial)
+const datosMovimiento = {
+  estado:  columnaKanban,
+  detalle: estadoRaw,
+  ciudad:  ciudad || null,
+  raw:     body                        // guarda el JSON completo del webhook
+};
+
+// PASO 6: Devolver todo listo para los nodos de Supabase en n8n
 return [
   {
     json: {
-      status: estadoFinal
+      // ── Para el nodo "Upsert Card" (tabla cards) ──
+      card: datosCard,
+      // ── Para el nodo "Insert Movimiento" (tabla movimientos) ──
+      movimiento: datosMovimiento,
+      // ── Para filtros o condiciones en el flujo ──
+      status: columnaKanban,
+      numero_guia: numeroGuia
     }
   }
 ];

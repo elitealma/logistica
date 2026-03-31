@@ -1,10 +1,10 @@
 // =====================================================
-// 🚚 ESTADO: ALISTAMIENTO CLIENTE CORPORATIVO (Guía Generada)
+// 📦 ESTADO: ALISTAMIENTO CLIENTE CORPORATIVO (Guía Generada)
 // =====================================================
 // ¿Qué hace este código?
-//   Detecta cuando se acaba de CREAR una guía de envío.
-//   Es el primer estado del paquete — todavía no está
-//   en manos del transportador.
+//   Lee los datos del webhook de Servientrega,
+//   detecta que se acaba de CREAR una guía de envío
+//   y prepara toda la información para guardarla en Supabase.
 //
 // 📥 EJEMPLOS DE LO QUE PUEDE LLEGAR (EstadoActualEnvio):
 //   - "Guia_generada"
@@ -13,36 +13,81 @@
 //   - "guia generada cliente corporativo"
 //   - "Alistamiento - Guia Generada"
 //
-// 📤 LO QUE DEVUELVE:
-//   - status: "GUIA_GENERADA"  ← si la guía acaba de ser creada
-//   - status: "OTRO_STATUS"    ← si no coincide con nada
+// 📤 GUARDA EN SUPABASE:
+//   → Tabla "cards":       inserta o actualiza la guía
+//   → Tabla "movimientos": registra el historial del evento
 // =====================================================
 
-// PASO 1: Leer el estado que viene del webhook de Servientrega
-const estadoEntrada = ($json.body?.EstadoActualEnvio || "").trim().toLowerCase();
+// PASO 1: Leer todos los datos que manda Servientrega
+const body = $json.body || {};
+
+const numeroGuia    = (body.NumeroGuia           || body.numero_guia    || "").trim();
+const clienteNombre = (body.NombreDestinatario   || body.cliente_nombre || "").trim();
+const telefono      = (body.TelefonoDestinatario || body.telefono       || "").trim();
+const ciudad        = (body.CiudadDestino        || body.ciudad         || "").trim();
+const departamento  = (body.DepartamentoDestino  || body.departamento   || "").trim();
+const producto      = (body.Producto             || body.producto       || "").trim();
+const valorTotal    = parseFloat(body.ValorTotal || body.valor_total    || 0) || null;
+const medioPago     = (body.MedioPago            || body.medio_pago     || "").trim();
+const estadoRaw     = (body.EstadoActualEnvio    || "").trim();
 
 // PASO 2: Quitar tildes para comparar más fácil
 const quitarTildes = (texto) =>
   texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-const estadoLimpio = quitarTildes(estadoEntrada);
+const estadoLimpio = quitarTildes(estadoRaw.toLowerCase());
 
-// PASO 3: Revisar si se trata de una guía recién generada
-let estadoFinal = "OTRO_STATUS";
+// PASO 3: Confirmar que es una guía recién generada
+let columnaKanban = "OTRO_STATUS";
+let estadoLegible = "❓ Estado desconocido";
 
 if (
   estadoLimpio.includes("guia_generada") ||
   estadoLimpio.includes("guia generada")
 ) {
-  // ✅ La guía existe pero el paquete aún no ha sido recogido
-  estadoFinal = "GUIA_GENERADA";
+  columnaKanban = "GUIA_GENERADA";
+  estadoLegible = "📦 Guía Creada — el paquete aún no ha salido";
 }
 
-// PASO 4: Devolver el resultado
+// PASO 4: Armar el objeto para guardar en Supabase → tabla "cards"
+//   (upsert: inserta si es nueva, actualiza si ya existía)
+//   ⚠️ En la guía generada incluimos más campos porque es el primer registro
+const datosCard = {
+  numero_guia:    numeroGuia,
+  cliente_nombre: clienteNombre || null,
+  telefono:       telefono || null,
+  ciudad:         ciudad || null,
+  departamento:   departamento || null,
+  producto:       producto || null,
+  valor_total:    valorTotal,
+  medio_pago:     medioPago || null,
+  columna:        columnaKanban,
+  estado_legible: estadoLegible,
+  mensaje:        estadoRaw,           // texto original de Servientrega
+  transportadora: "Servientrega",
+  updated_at:     new Date().toISOString()
+};
+
+// PASO 5: Armar el objeto para guardar en Supabase → tabla "movimientos"
+//   (siempre se inserta — es el historial)
+const datosMovimiento = {
+  estado:  columnaKanban,
+  detalle: estadoRaw,
+  ciudad:  ciudad || null,
+  raw:     body                        // guarda el JSON completo del webhook
+};
+
+// PASO 6: Devolver todo listo para los nodos de Supabase en n8n
 return [
   {
     json: {
-      status: estadoFinal
+      // ── Para el nodo "Upsert Card" (tabla cards) ──
+      card: datosCard,
+      // ── Para el nodo "Insert Movimiento" (tabla movimientos) ──
+      movimiento: datosMovimiento,
+      // ── Para filtros o condiciones en el flujo ──
+      status: columnaKanban,
+      numero_guia: numeroGuia
     }
   }
 ];
